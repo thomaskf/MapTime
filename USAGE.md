@@ -1,34 +1,37 @@
-# MapTime — `AnchoredMap` User Guide
+# MapTime — How to use `AnchoredMap`
 
-`AnchoredMap` loads one gen3sis paleo-environmental raster layer from a
-NetCDF-4 (`.nc`) file and lets you query its values and summary statistics.
-**One `AnchoredMap` object = one `.nc` file** (one variable, at one age).
+`AnchoredMap` is the main class. It reads one map file (`.nc`) and lets you ask
+for the numbers inside it.
 
-- Source class: `src/main/java/maps/AnchoredMap.java`
-- Package/import: `import maps.AnchoredMap;` (only needed when calling from another package)
+**One `AnchoredMap` object = one file.** One file holds one kind of value, for
+the whole world, at one age.
 
----
-
-## 1. Key concepts (read this first)
-
-- **The grid.** Each file is a global grid of `1800` latitudes × `3600`
-  longitudes at `0.1°` spacing. The value of interest is stored in the
-  file's `Band1` variable.
-- **Coordinates are signed decimal degrees.**
-  - Latitude (`lat`): **North is +, South is −** (e.g. Sydney ≈ `-33.87`).
-  - Longitude (`lon`): **East is +, West is −** (e.g. Sydney ≈ `151.21`).
-  - Convert any degrees-minutes-seconds source first: `deg + min/60 + sec/3600`.
-- **Axis order is ascending.** `lat[0] ≈ -89.95` (far south),
-  `lat[1799] ≈ 89.95` (far north); `lon[0] ≈ -179.95`, `lon[3599] ≈ 179.95`.
-- **No-data is `NaN`.** Cells with no value hold `Float.NaN`. The statistics
-  methods skip them automatically; if you read raw values yourself, test with
-  `Float.isNaN(v)`.
-- **Loaded fully into memory.** The whole grid (~26 MB per file) is read on
-  `load(...)`, so every query afterwards is fast in-memory array access.
+- Where the code is: `src/main/java/maps/AnchoredMap.java`
+- To use it from another package, add: `import maps.AnchoredMap;`
 
 ---
 
-## 2. Loading a file
+## 1. Things to know first
+
+- **The grid.** Each file is a grid of the whole world: 1800 rows (latitude) and
+  3600 columns (longitude). Each cell is 0.1 degrees wide. The values are in a
+  part called `Band1`.
+- **Latitude and longitude are plain numbers (decimal degrees).**
+  - Latitude: North is `+`, South is `-`. (Sydney is about `-33.87`.)
+  - Longitude: East is `+`, West is `-`. (Sydney is about `151.21`.)
+  - If your numbers look like `43°38'` (degrees and minutes), change them first:
+    `degrees + minutes/60 + seconds/3600`.
+- **The order of the grid.** `lat[0]` is the far south (`-89.95`). `lat[1799]` is
+  the far north (`89.95`). It is the same idea for `lon`.
+- **Empty cells are `NaN`.** Some cells have no value. They hold `NaN` ("not a
+  number"). The stats methods skip these cells for you. If you read a value
+  yourself, check it with `Float.isNaN(value)`.
+- **The whole file is read into memory.** When you open a file, all of it is
+  loaded (about 26 MB). After that, asking for values is very fast.
+
+---
+
+## 2. Open a file
 
 ```java
 import maps.AnchoredMap;
@@ -38,157 +41,157 @@ AnchoredMap map = AnchoredMap.load(
         Path.of("../maps/map_anchored/map0_10.00Ma.nc"));
 ```
 
-| Method | Returns | Notes |
+| Method | Gives you | Notes |
 |---|---|---|
-| `static AnchoredMap load(Path file)` | `AnchoredMap` | Opens and reads the file. Throws `IOException` if the file is missing, has no `Band1`, or isn't a 2-D grid. The file handle is closed automatically before the method returns. |
+| `static AnchoredMap load(Path file)` | a new `AnchoredMap` | Opens and reads the file. Throws `IOException` if the file is missing, has no `Band1`, or is not a 2-D grid. The file is closed for you after reading. |
 
-`load` also parses the filename (`map0_10.00Ma.nc`) to fill in the `layer` and
-`ageMa` fields below. If the name doesn't match the expected pattern, `layer`
-becomes `"unknown"` and `ageMa` becomes `NaN` (no error).
+`load` also reads the name of the file (like `map0_10.00Ma.nc`) to fill in
+`layer` and `ageMa` (see below). If the name does not fit the pattern, `layer`
+becomes `"unknown"` and `ageMa` becomes `NaN`. It does not crash.
 
 ---
 
-## 3. Inspecting metadata (public fields)
+## 3. See the file's info (fields you can read)
 
-After loading, read these directly (they are read-only `final` fields):
+After loading, you can read these directly. You can read them but not change
+them.
 
 | Field | Type | Example | Meaning |
 |---|---|---|---|
-| `map.layer` | `String` | `"map"` | Variable code from the filename (`map`, `mat`, `z`, …). |
-| `map.ageMa` | `double` | `10.0` | Reconstruction age, millions of years. |
-| `map.path` | `String` | `/…/map0_10.00Ma.nc` | Absolute source path. |
-| `map.nLat` | `int` | `1800` | Number of latitude rows. |
-| `map.nLon` | `int` | `3600` | Number of longitude columns. |
-| `map.lat` | `double[]` | `[-89.95 … 89.95]` | Latitude of each row (degrees north). |
-| `map.lon` | `double[]` | `[-179.95 … 179.95]` | Longitude of each column (degrees east). |
-| `map.globalAttributes` | `Map<String,String>` | `{Conventions=CF-1.5, …}` | File metadata, in file order. |
+| `map.layer` | `String` | `"map"` | The short code from the file name (`map`, `mat`, `z`, ...). |
+| `map.ageMa` | `double` | `10.0` | The age, in millions of years. |
+| `map.path` | `String` | `/.../map0_10.00Ma.nc` | The full file path. |
+| `map.nLat` | `int` | `1800` | Number of rows (latitude). |
+| `map.nLon` | `int` | `3600` | Number of columns (longitude). |
+| `map.lat` | `double[]` | `[-89.95 ... 89.95]` | The latitude of each row. |
+| `map.lon` | `double[]` | `[-179.95 ... 179.95]` | The longitude of each column. |
+| `map.globalAttributes` | `Map<String,String>` | `{Conventions=CF-1.5, ...}` | Extra info from the file. |
 
 ```java
 System.out.println(map.layer + " at " + map.ageMa + " Ma");
 System.out.println("grid: " + map.nLat + " x " + map.nLon);
-System.out.println("lat range: " + map.lat[0] + " .. " + map.lat[map.nLat - 1]);
 map.globalAttributes.forEach((k, v) -> System.out.println(k + " = " + v));
 ```
 
 ---
 
-## 4. Reading values
+## 4. Get a value
 
-### 4.1 By geographic coordinate (most common)
+### 4.1 By place (most common)
 
 ```java
-float precip = map.valueAt(-33.87, 151.21);   // nearest cell to Sydney
-if (Float.isNaN(precip)) {
-    System.out.println("no data at that location");
+float value = map.valueAt(-33.87, 151.21);   // near Sydney
+if (Float.isNaN(value)) {
+    System.out.println("no value here");
 } else {
-    System.out.println("value = " + precip);
+    System.out.println("value = " + value);
 }
 ```
 
-| Method | Returns | Notes |
+| Method | Gives you | Notes |
 |---|---|---|
-| `float valueAt(double latDeg, double lonDeg)` | value at the **nearest** grid cell, or `NaN` if no data | Coordinates are signed decimal degrees. Out-of-range coordinates snap to the nearest edge cell (no exception). |
+| `float valueAt(double latDeg, double lonDeg)` | the value at the nearest cell, or `NaN` if empty | Give it latitude and longitude as plain numbers. If the place is outside the map, it uses the nearest edge cell (no crash). |
 
-### 4.2 By grid index
+### 4.2 By cell number (row and column)
 
 ```java
-int row = map.latIndexOf(-33.87);   // latitude  -> row index
-int col = map.lonIndexOf(151.21);   // longitude -> column index
-float v = map.at(row, col);         // value at those indices
+int row = map.latIndexOf(-33.87);   // latitude  -> row number
+int col = map.lonIndexOf(151.21);   // longitude -> column number
+float value = map.at(row, col);     // value at that cell
 ```
 
-| Method | Returns | Notes |
+| Method | Gives you | Notes |
 |---|---|---|
-| `float at(int latIndex, int lonIndex)` | value at exact indices, or `NaN` | **No bounds checking** — indices must be in `0..nLat-1` / `0..nLon-1`, or you get an `ArrayIndexOutOfBoundsException`. |
-| `int latIndexOf(double latDeg)` | nearest row index | Clamps to `0 … nLat-1`. |
-| `int lonIndexOf(double lonDeg)` | nearest column index | Clamps to `0 … nLon-1`. |
+| `float at(int latIndex, int lonIndex)` | the value at that cell | **No safety check.** The numbers must be inside the grid, or you get an error. |
+| `int latIndexOf(double latDeg)` | the nearest row number | Stays inside the grid. |
+| `int lonIndexOf(double lonDeg)` | the nearest column number | Stays inside the grid. |
 
 ### 4.3 The whole grid at once
 
 ```java
-float[][] g = map.grid();           // g[latIndex][lonIndex]
-float corner = g[0][0];             // far south-west cell
+float[][] g = map.grid();   // g[row][column]
+float corner = g[0][0];     // far south-west cell
 ```
 
-| Method | Returns | Notes |
+| Method | Gives you | Notes |
 |---|---|---|
-| `float[][] grid()` | the backing 2-D array `[lat][lon]` | For bulk work (export to CSV, custom math). **Do not modify** — it is the live internal array, not a copy. |
+| `float[][] grid()` | the full 2-D table `[row][column]` | Use this for big jobs (like saving to a CSV file). **Do not change it.** It is the real table, not a copy. |
 
 ---
 
-## 5. Summary statistics
+## 5. Get stats
 
-All statistics ignore `NaN` cells and are returned as a `Stats` record
-(see §6).
+All stats skip empty (`NaN`) cells. They give you back a `Stats` object (see
+part 6).
 
 ```java
+// Whole world:
 AnchoredMap.Stats all = map.stats();
-System.out.println(all);            // valid=… missing=… min=… max=… mean=…
+System.out.println(all);
 
-// Australia, by geographic bounding box (degrees):
+// One box on the map (Australia), using latitude/longitude:
 AnchoredMap.Stats oz = map.statsOfBox(-43.633, -10.683, 113.150, 153.633);
-System.out.println("Australia mean = " + oz.mean());
+System.out.println("Australia average = " + oz.mean());
 
-// Or by raw index window:
-AnchoredMap.Stats region = map.statsOfRegion(0, 899, 0, 1799); // SW quadrant
+// One box, using cell numbers:
+AnchoredMap.Stats part = map.statsOfRegion(0, 899, 0, 1799);
 ```
 
-| Method | Returns | Notes |
+| Method | Gives you | Notes |
 |---|---|---|
-| `Stats stats()` | statistics over the **whole** grid | Convenience for the full extent. |
-| `Stats statsOfBox(double latMin, double latMax, double lonMin, double lonMax)` | statistics over a **geographic** box (inclusive, degrees) | Corner order doesn't matter — it sorts internally. |
-| `Stats statsOfRegion(int lat0, int lat1, int lon0, int lon1)` | statistics over an **index** window (inclusive) | Lower-level; useful if you already have indices. |
+| `Stats stats()` | stats for the whole world | The easy one. |
+| `Stats statsOfBox(double latMin, double latMax, double lonMin, double lonMax)` | stats for a box, using latitude/longitude | The order of the corners does not matter. |
+| `Stats statsOfRegion(int lat0, int lat1, int lon0, int lon1)` | stats for a box, using cell numbers | Use this if you already have cell numbers. |
 
-> **Note:** a bounding box is a rectangle and includes ocean cells. In these
-> files precipitation/temperature are defined over the ocean too, so a box
-> mean is *not* a land-only mean. Mask with the elevation layer if you need
-> land only.
+> **Note:** a box is a rectangle. Around Australia, the box also covers some
+> ocean. In these files the ocean has values too, so a box average is **not**
+> the land-only average. To get land only, you can remove ocean cells using the
+> height layer (`z_anchored`, where the ocean is below 0).
 
 ---
 
-## 6. The `Stats` record
+## 6. The `Stats` object
 
-`statsOfRegion`, `statsOfBox`, and `stats()` all return an
-`AnchoredMap.Stats`, an immutable holder with these accessors:
+`stats()`, `statsOfBox()`, and `statsOfRegion()` all give you a `Stats` object.
+You read its parts like this:
 
-| Accessor | Type | Meaning |
+| Part | Type | Meaning |
 |---|---|---|
-| `valid()` | `long` | number of non-`NaN` cells counted |
-| `missing()` | `long` | number of `NaN` cells skipped |
-| `min()` | `double` | minimum valid value (`NaN` if no valid cells) |
-| `max()` | `double` | maximum valid value (`NaN` if no valid cells) |
-| `mean()` | `double` | arithmetic mean of valid values (`NaN` if none) |
+| `valid()` | `long` | how many cells had a value |
+| `missing()` | `long` | how many cells were empty (`NaN`) |
+| `min()` | `double` | the smallest value (`NaN` if none) |
+| `max()` | `double` | the largest value (`NaN` if none) |
+| `mean()` | `double` | the average value (`NaN` if none) |
 
 ```java
 AnchoredMap.Stats s = map.stats();
-System.out.printf("%d cells, mean %.2f (%.2f–%.2f)%n",
+System.out.printf("%d cells, average %.2f (from %.2f to %.2f)%n",
         s.valid(), s.mean(), s.min(), s.max());
 ```
 
-Its `toString()` prints: `valid=… missing=… min=… max=… mean=…`.
+If you print a `Stats` object, it shows:
+`valid=... missing=... min=... max=... mean=...`
 
 ---
 
-## 7. Lifecycle / closing
+## 7. Closing the file
 
-`AnchoredMap` implements `AutoCloseable`, but the underlying file is already
-closed at the end of `load(...)`. Calling `close()` does nothing and is
-optional — there is no resource leak if you skip it. You may still use
-try-with-resources for style:
+`AnchoredMap` can be used with try-with-resources, but you do not have to. The
+file is already closed after `load(...)`. The `close()` method does nothing, so
+nothing leaks if you skip it.
 
 ```java
-// optional; not required
+// This works, but is not needed:
 try (AnchoredMap m = AnchoredMap.load(file)) {
     System.out.println(m.stats());
 }
 ```
 
-To free the ~26 MB grid, just let the `AnchoredMap` go out of scope (the
-garbage collector reclaims it).
+To free the memory, just stop using the object. Java cleans it up for you.
 
 ---
 
-## 8. Complete example
+## 8. Full example
 
 ```java
 import maps.AnchoredMap;
@@ -199,16 +202,16 @@ public class Demo {
         AnchoredMap map = AnchoredMap.load(
                 Path.of("../maps/map_anchored/map0_10.00Ma.nc"));
 
-        // metadata
-        System.out.println(map.layer + " @ " + map.ageMa + " Ma, "
+        // info
+        System.out.println(map.layer + " at " + map.ageMa + " Ma, "
                 + map.nLat + "x" + map.nLon);
 
-        // a point value
+        // one value
         float sydney = map.valueAt(-33.87, 151.21);
         System.out.println("Sydney value = " + sydney);
 
-        // whole-grid and regional stats
-        System.out.println("global: " + map.stats());
+        // stats
+        System.out.println("world: " + map.stats());
         System.out.println("Australia: "
                 + map.statsOfBox(-43.633, -10.683, 113.150, 153.633));
     }
@@ -217,17 +220,18 @@ public class Demo {
 
 ---
 
-## 9. Quick reference
+## 9. Quick list
 
 ```
-load(Path)                              -> AnchoredMap          (static; throws IOException)
-valueAt(latDeg, lonDeg)                 -> float   (NaN if none; nearest cell)
-at(latIndex, lonIndex)                  -> float   (no bounds check)
-latIndexOf(latDeg) / lonIndexOf(lonDeg) -> int     (clamped to grid)
-grid()                                  -> float[][]  [lat][lon]  (do not modify)
-stats()                                 -> Stats   (whole grid)
-statsOfBox(latMin,latMax,lonMin,lonMax) -> Stats   (degrees, inclusive)
-statsOfRegion(lat0,lat1,lon0,lon1)      -> Stats   (indices, inclusive)
+load(Path)                              -> AnchoredMap   (can throw IOException)
+valueAt(latDeg, lonDeg)                 -> float   (NaN if empty; nearest cell)
+at(latIndex, lonIndex)                  -> float   (no safety check)
+latIndexOf(latDeg) / lonIndexOf(lonDeg) -> int     (stays inside the grid)
+grid()                                  -> float[][]  [row][column]  (do not change)
+stats()                                 -> Stats   (whole world)
+statsOfBox(latMin,latMax,lonMin,lonMax) -> Stats   (box, lat/lon)
+statsOfRegion(lat0,lat1,lon0,lon1)      -> Stats   (box, cell numbers)
+
 fields: layer, ageMa, path, lat[], lon[], nLat, nLon, globalAttributes
 Stats:  valid(), missing(), min(), max(), mean()
 ```
