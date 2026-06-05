@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>org.gen3sis</groupId>
+  <artifactId>maptime</artifactId>
+  <version>1.0.0</version>
+  <packaging>jar</packaging>
+  <name>MapTime</name>
+  <description>Loads gen3sis paleo-environmental NetCDF-4 raster layers in Java.</description>
+
+  <properties>
+    <maven.compiler.release>21</maven.compiler.release>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <netcdf.version>5.6.0</netcdf.version>
+  </properties>
+
+  <repositories>
+    <!-- cdm-core is on Maven Central, but Unidata's repo is the authoritative mirror -->
+    <repository>
+      <id>unidata-all</id>
+      <name>Unidata All</name>
+      <url>https://artifacts.unidata.ucar.edu/repository/unidata-all/</url>
+    </repository>
+  </repositories>
+
+  <dependencies>
+    <!-- netCDF-Java Common Data Model core: pure-Java HDF5/NetCDF-4 reader -->
+    <dependency>
+      <groupId>edu.ucar</groupId>
+      <artifactId>cdm-core</artifactId>
+      <version>${netcdf.version}</version>
+    </dependency>
+    <!-- Pin slf4j-api to 2.x so it matches the slf4j-simple 2.x backend below.
+         (cdm-core transitively pulls slf4j-api 1.7.x; declaring it directly here
+         wins dependency mediation. SLF4J 2.x is backward compatible, so cdm-core
+         keeps working.) Aligning the versions removes the StaticLoggerBinder warning. -->
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+      <version>2.0.13</version>
+    </dependency>
+    <!-- SLF4J backend so the library's log calls have somewhere to go. -->
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-simple</artifactId>
+      <version>2.0.13</version>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <finalName>maptime</finalName>
+    <plugins>
+      <!-- Build a runnable fat-jar so it can be invoked as a standalone tool -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>3.6.0</version>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals><goal>shade</goal></goals>
+            <configuration>
+              <transformers>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                  <mainClass>maps.Main</mainClass>
+                </transformer>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+              </transformers>
+              <filters>
+                <filter>
+                  <artifact>*:*</artifact>
+                  <excludes>
+                    <exclude>META-INF/*.SF</exclude>
+                    <exclude>META-INF/*.DSA</exclude>
+                    <exclude>META-INF/*.RSA</exclude>
+                  </excludes>
+                </filter>
+              </filters>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>

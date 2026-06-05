@@ -1,0 +1,20 @@
+# Maven build output
+target/
+dependency-reduced-pom.xml
+
+# Logs
+*.log
+
+# Eclipse / IDE
+.classpath
+.project
+.settings/
+.factorypath
+bin/
+
+# IntelliJ
+.idea/
+*.iml
+
+# macOS
+.DS_Store
