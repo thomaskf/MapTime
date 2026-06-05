@@ -49,6 +49,24 @@ java -jar target/maptime.jar [path to a .nc file]
 If you give no path, it uses `../maps/map_anchored/map0_10.00Ma.nc` (see "Where
 the data is" below).
 
+The demo prints these results:
+
+```text
+Global stats : valid=6472587 missing=7413 min=6.6530 max=5109.9824 mean=912.2941
+Australia box [lat -43.633..-10.683, lon 113.150..153.633]:
+  valid=134386 missing=0 min=253.0417 max=2025.8651 mean=744.8467
+
+value @ (-33.87, 151.21) Sydney    = 569.507
+value @ (  0.00,-140.00) mid-Pacific= 570.827
+```
+
+What the numbers mean (this file holds rainfall, in mm per year):
+
+- The world has 6,472,587 cells with a value, and 7,413 empty cells.
+- World rainfall goes from about 7 to 5110 mm. The average is about 912 mm.
+- In the Australia box, the average is about 745 mm.
+- Near Sydney, the value is about 570 mm.
+
 ## How to use it in your own code
 
 ```java
@@ -64,6 +82,13 @@ float value = map.valueAt(-33.87, 151.21);
 // 3. Get stats for the Australia box.
 AnchoredMap.Stats oz = map.statsOfBox(-43.633, -10.683, 113.150, 153.633);
 System.out.println(oz);
+```
+
+This prints:
+
+```text
+value (near Sydney) = 569.507
+valid=134386 missing=0 min=253.0417 max=2025.8651 mean=744.8467
 ```
 
 Latitude and longitude use plain numbers (decimal degrees):
