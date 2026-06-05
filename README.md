@@ -1,75 +1,95 @@
 # MapTime
 
-A small Java library for loading **paleo-environmental raster layers** stored as
-NetCDF-4 (`.nc`) files, for analysis on the JVM. The data are global
-deep-time reconstructions (e.g. for a [gen3sis](https://github.com/project-gen3sis)
-landscape simulation of Australia) — one variable per file, at a series of
-geological ages.
+MapTime is a small Java tool. It reads map data files and gives you the numbers
+inside them.
 
-## What it does
+The files are `.nc` files (NetCDF format). Each file is one map of the whole
+world at one moment in deep time (millions of years ago). One file holds one
+kind of value, for example rainfall or temperature.
 
-Each `.nc` file holds a single global grid (1800 lat × 3600 lon at 0.1°) in a
-`Band1` variable, with `lat`/`lon` coordinate axes and `NaN` for no-data.
-The `AnchoredMap` class loads one such file and lets you:
+## What one file holds
 
-- read metadata (layer name, age, grid size, axes, global attributes),
-- look up values by geographic coordinate (`valueAt`) or grid index (`at`),
-- compute summary statistics over the whole grid, an index window, or a
-  geographic bounding box.
+- A grid of the whole world: 1800 rows (latitude) and 3600 columns (longitude).
+- Each cell is 0.1 degrees wide.
+- The values are stored in a part called `Band1`.
+- Cells with no value are marked `NaN` ("not a number").
 
-See **[USAGE.md](USAGE.md)** for the full API guide.
+## What MapTime can do
 
-## Build
+The main class is called `AnchoredMap`. After it reads a file, you can:
 
-Requires JDK 21+ and Maven.
+- See the file's info (its name, its age, the grid size).
+- Get the value at a place, using latitude and longitude.
+- Get simple stats (smallest, largest, and average value) for the whole world,
+  or for one box on the map.
+
+For all the details, see **[USAGE.md](USAGE.md)**.
+
+## What you need
+
+- Java 21 or newer.
+- Maven (a tool that builds Java projects).
+
+## How to build it
+
+Open a terminal in this folder and run:
 
 ```bash
 mvn package
 ```
 
-This produces a runnable fat-jar at `target/maptime.jar`.
+This makes one ready-to-run file: `target/maptime.jar`.
 
-## Run the demo
+## How to run the demo
 
 ```bash
-java -jar target/maptime.jar [path/to/file.nc]
+java -jar target/maptime.jar [path to a .nc file]
 ```
 
-With no argument it loads `../maps/map_anchored/map0_10.00Ma.nc` (see Data below).
+If you give no path, it uses `../maps/map_anchored/map0_10.00Ma.nc` (see "Where
+the data is" below).
 
-## Use as a library
+## How to use it in your own code
 
 ```java
 import maps.AnchoredMap;
 import java.nio.file.Path;
 
+// 1. Open a file.
 AnchoredMap map = AnchoredMap.load(Path.of("path/to/map0_10.00Ma.nc"));
-float v = map.valueAt(-33.87, 151.21);                  // nearest cell (Sydney)
+
+// 2. Get the value near Sydney.
+float value = map.valueAt(-33.87, 151.21);
+
+// 3. Get stats for the Australia box.
 AnchoredMap.Stats oz = map.statsOfBox(-43.633, -10.683, 113.150, 153.633);
-System.out.println(oz);                                 // Australia summary
+System.out.println(oz);
 ```
 
-Coordinates are **signed decimal degrees** (North/East positive, South/West
-negative).
+Latitude and longitude use plain numbers (decimal degrees):
 
-## Data
+- North is `+`, South is `-`.
+- East is `+`, West is `-`.
 
-The NetCDF data files (~2 GB total) are **not stored in this repository** —
-they are large static binaries unsuitable for git. Place them alongside the
-project so the demo's default path resolves:
+## Where the data is
+
+The data files are very big (about 2 GB in total). They are **not** in this
+repository, because GitHub is not made for big data files.
+
+Keep the data next to this project, like this:
 
 ```
-<parent>/
-├── maps/            # data: ed_anchored/, map_anchored/, mat_anchored/, ...
-└── maptime/         # this repository
+<parent folder>/
+├── maps/            (the data: map_anchored, mat_anchored, z_anchored, ...)
+└── maptime/         (this project)
 ```
 
-<!-- TODO: add the public download link (e.g. Zenodo/Figshare DOI) for the data here. -->
+<!-- TODO: add the public download link for the data here. -->
 
-## Dependencies
+## Libraries it uses
 
-- [netCDF-Java (CDM)](https://www.unidata.ucar.edu/software/netcdf-java/)
-  `edu.ucar:cdm-core` — pure-Java NetCDF-4/HDF5 reader (no native libraries).
-- SLF4J (`slf4j-api` + `slf4j-simple`) for logging.
+- **netCDF-Java (CDM)** — reads the `.nc` files. It is pure Java, so you do not
+  need to install anything extra.
+- **SLF4J** — used for log messages.
 
-Maven resolves these automatically.
+Maven downloads these for you.
